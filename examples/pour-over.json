@@ -1,0 +1,18 @@
+{
+  "spec": "brewmark.obp/0.1",
+  "id": "brewmark-pour-over",
+  "name": "Pour Over: BrewMark starting point",
+  "method": "pour_over",
+  "grind": {
+    "bgi": 38,
+    "label": "Medium-fine"
+  },
+  "ratio": 16.7,
+  "temperatureC": 96,
+  "timeSeconds": 180,
+  "author": {
+    "type": "brewmark",
+    "name": "BrewMark"
+  },
+  "source": "https://brewmark.io/methods/pour-over"
+}

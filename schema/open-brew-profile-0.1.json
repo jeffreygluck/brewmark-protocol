@@ -1,0 +1,217 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://brewmark.io/protocol/schema/open-brew-profile-0.1.json",
+  "title": "Open Brew Profile 0.1",
+  "type": "object",
+  "properties": {
+    "spec": {
+      "type": "string",
+      "const": "brewmark.obp/0.1"
+    },
+    "id": {
+      "type": "string",
+      "maxLength": 64
+    },
+    "name": {
+      "type": "string",
+      "maxLength": 120
+    },
+    "method": {
+      "type": "string",
+      "enum": [
+        "pour_over",
+        "drip",
+        "batch_brew",
+        "french_press",
+        "immersion",
+        "aeropress",
+        "espresso",
+        "moka",
+        "cold_brew"
+      ]
+    },
+    "coffee": {
+      "type": "object",
+      "properties": {
+        "roaster": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "origin": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "process": {
+          "type": "string",
+          "maxLength": 60
+        },
+        "roast": {
+          "type": "string",
+          "enum": [
+            "light",
+            "medium-light",
+            "medium",
+            "medium-dark",
+            "dark"
+          ]
+        },
+        "roastDate": {
+          "type": "string",
+          "format": "date",
+          "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "brewer": {
+      "type": "object",
+      "properties": {
+        "family": {
+          "description": "e.g. \"cone\", \"flat-bottom\", \"immersion\", \"espresso-machine\".",
+          "type": "string",
+          "maxLength": 60
+        },
+        "model": {
+          "type": "string",
+          "maxLength": 120
+        }
+      },
+      "additionalProperties": false
+    },
+    "grind": {
+      "type": "object",
+      "properties": {
+        "bgi": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Target on the BrewMark Grind Index: 0 espresso fine, 40 filter medium, 100 very coarse."
+        },
+        "label": {
+          "description": "How the author describes the grind, e.g. \"Medium-fine\".",
+          "type": "string",
+          "maxLength": 40
+        },
+        "d50Microns": {
+          "description": "Target median particle size, when the author has measured it.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        }
+      },
+      "required": [
+        "bgi"
+      ],
+      "additionalProperties": false
+    },
+    "ratio": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "Grams of water per gram of coffee. For espresso, grams of drink out per gram of coffee."
+    },
+    "doseGrams": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "waterGrams": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "temperatureC": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "timeSeconds": {
+      "description": "Total brew time.",
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "steps": {
+      "maxItems": 40,
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "atSeconds": {
+            "type": "number",
+            "minimum": 0,
+            "description": "When the step starts, from the first water."
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "bloom",
+              "pour",
+              "stir",
+              "swirl",
+              "steep",
+              "press",
+              "drawdown",
+              "serve"
+            ]
+          },
+          "waterGrams": {
+            "description": "Total water in the brewer by the end of this step.",
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 280
+          }
+        },
+        "required": [
+          "atSeconds",
+          "action"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "author": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "roaster",
+            "brewmark",
+            "person",
+            "machine"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 120
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": false
+    },
+    "source": {
+      "type": "string",
+      "format": "uri"
+    },
+    "extensions": {
+      "description": "Vendor fields. Keys start with \"x-\"; readers ignore keys they do not know.",
+      "type": "object",
+      "propertyNames": {
+        "type": "string",
+        "pattern": "^x-[a-z0-9-]+$"
+      },
+      "additionalProperties": {}
+    }
+  },
+  "required": [
+    "spec",
+    "method",
+    "grind",
+    "ratio"
+  ],
+  "additionalProperties": false
+}

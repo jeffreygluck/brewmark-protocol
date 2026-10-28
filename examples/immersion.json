@@ -1,0 +1,18 @@
+{
+  "spec": "brewmark.obp/0.1",
+  "id": "brewmark-immersion",
+  "name": "Immersion: BrewMark starting point",
+  "method": "immersion",
+  "grind": {
+    "bgi": 48,
+    "label": "Medium"
+  },
+  "ratio": 15.5,
+  "temperatureC": 96,
+  "timeSeconds": 240,
+  "author": {
+    "type": "brewmark",
+    "name": "BrewMark"
+  },
+  "source": "https://brewmark.io/methods/immersion"
+}

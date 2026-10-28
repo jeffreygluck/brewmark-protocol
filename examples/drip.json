@@ -1,0 +1,18 @@
+{
+  "spec": "brewmark.obp/0.1",
+  "id": "brewmark-drip",
+  "name": "Drip: BrewMark starting point",
+  "method": "drip",
+  "grind": {
+    "bgi": 50,
+    "label": "Medium"
+  },
+  "ratio": 16,
+  "temperatureC": 93.5,
+  "timeSeconds": 300,
+  "author": {
+    "type": "brewmark",
+    "name": "BrewMark"
+  },
+  "source": "https://brewmark.io/methods/drip"
+}

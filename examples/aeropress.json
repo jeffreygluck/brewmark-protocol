@@ -1,0 +1,18 @@
+{
+  "spec": "brewmark.obp/0.1",
+  "id": "brewmark-aeropress",
+  "name": "AeroPress: BrewMark starting point",
+  "method": "aeropress",
+  "grind": {
+    "bgi": 25,
+    "label": "Fine to medium-fine"
+  },
+  "ratio": 14,
+  "temperatureC": 85,
+  "timeSeconds": 90,
+  "author": {
+    "type": "brewmark",
+    "name": "BrewMark"
+  },
+  "source": "https://brewmark.io/methods/aeropress"
+}

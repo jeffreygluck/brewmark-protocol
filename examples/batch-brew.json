@@ -1,0 +1,18 @@
+{
+  "spec": "brewmark.obp/0.1",
+  "id": "brewmark-batch-brew",
+  "name": "Batch Brew: BrewMark starting point",
+  "method": "batch_brew",
+  "grind": {
+    "bgi": 52,
+    "label": "Medium"
+  },
+  "ratio": 16.5,
+  "temperatureC": 93.5,
+  "timeSeconds": 360,
+  "author": {
+    "type": "brewmark",
+    "name": "BrewMark"
+  },
+  "source": "https://brewmark.io/methods/batch-brew"
+}

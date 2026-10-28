@@ -1,0 +1,18 @@
+{
+  "spec": "brewmark.obp/0.1",
+  "id": "brewmark-espresso",
+  "name": "Espresso: BrewMark starting point",
+  "method": "espresso",
+  "grind": {
+    "bgi": 5,
+    "label": "Very fine"
+  },
+  "ratio": 2,
+  "temperatureC": 93.5,
+  "timeSeconds": 28,
+  "author": {
+    "type": "brewmark",
+    "name": "BrewMark"
+  },
+  "source": "https://brewmark.io/methods/espresso"
+}

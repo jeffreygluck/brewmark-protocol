@@ -1,0 +1,18 @@
+{
+  "spec": "brewmark.obp/0.1",
+  "id": "brewmark-french-press",
+  "name": "French Press: BrewMark starting point",
+  "method": "french_press",
+  "grind": {
+    "bgi": 72,
+    "label": "Coarse"
+  },
+  "ratio": 15,
+  "temperatureC": 93.5,
+  "timeSeconds": 240,
+  "author": {
+    "type": "brewmark",
+    "name": "BrewMark"
+  },
+  "source": "https://brewmark.io/methods/french-press"
+}

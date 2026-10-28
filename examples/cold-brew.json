@@ -1,0 +1,18 @@
+{
+  "spec": "brewmark.obp/0.1",
+  "id": "brewmark-cold-brew",
+  "name": "Cold Brew: BrewMark starting point",
+  "method": "cold_brew",
+  "grind": {
+    "bgi": 88,
+    "label": "Very coarse"
+  },
+  "ratio": 8,
+  "temperatureC": 20,
+  "timeSeconds": 43200,
+  "author": {
+    "type": "brewmark",
+    "name": "BrewMark"
+  },
+  "source": "https://brewmark.io/methods/cold-brew"
+}
