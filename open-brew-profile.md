@@ -47,6 +47,7 @@ error; vendor data goes under `extensions`.
 | `steps` | array, ≤ 40 | Each: `atSeconds`, `action` (`bloom`, `pour`, `stir`, `swirl`, `steep`, `press`, `drawdown`, `serve`), optional `waterGrams` (total in the brewer by the end of the step), optional `note` |
 | `author` | object | `type` (`roaster`, `brewmark`, `person`, `machine`), `name` |
 | `source` | URL | Where the recipe is published |
+| `water` | object | The water the recipe was dialed in with, below |
 | `extensions` | object | Vendor fields, keys starting `x-` (e.g. `"x-aiden": { "pulses": 3 }`). Readers ignore keys they don't know |
 
 ### `grind`
@@ -56,6 +57,17 @@ error; vendor data goes under `extensions`.
 | `bgi` (required) | number, 0–100 | Target on the BrewMark Grind Index |
 | `label` | string, ≤ 40 | How the author describes the grind, e.g. "Medium-fine" |
 | `d50Microns` | number | Target median particle size, when the author has measured it |
+
+### `water`
+
+| Field | Type | Meaning |
+| --- | --- | --- |
+| `name` | string, ≤ 80 | A named water recipe or product, e.g. "Third Wave Water Classic" |
+| `tdsMgL` | number, mg/L | Total dissolved solids |
+| `hardnessMgL` | number, mg/L as CaCO₃ | General hardness (calcium and magnesium) |
+| `alkalinityMgL` | number, mg/L as CaCO₃ | Alkalinity, which buffers acidity |
+
+Water is optional and describes the author's water; translate doesn't adjust the grind for it yet. Two cups at the same grind taste different on very hard and very soft water, so a reader whose water differs a lot should expect to adjust.
 
 A profile never carries a grinder setting. That is the point of the format: the
 setting depends on the reader's grinder and is produced by translate.

@@ -107,6 +107,36 @@
       ],
       "additionalProperties": false
     },
+    "water": {
+      "description": "The water the recipe was dialed in with. Hard, high-alkalinity water extracts and tastes differently from soft water.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "A named recipe or product, e.g. \"Third Wave Water Classic\".",
+          "type": "string",
+          "maxLength": 80
+        },
+        "tdsMgL": {
+          "description": "Total dissolved solids, mg/L.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "hardnessMgL": {
+          "description": "General hardness, mg/L as CaCO3.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "alkalinityMgL": {
+          "description": "Alkalinity (carbonate hardness), mg/L as CaCO3.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1000
+        }
+      },
+      "additionalProperties": false
+    },
     "ratio": {
       "type": "number",
       "exclusiveMinimum": 0,

@@ -1,0 +1,2984 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "BrewMark API",
+    "version": "0.1.0",
+    "summary": "Grind settings across coffee grinders, on one shared scale.",
+    "description": "The lookup half of the BrewMark Protocol (https://github.com/jeffreygluck/brewmark-protocol): translate a BrewMark Grind Index (BGI) target or an Open Brew Profile to a setting on a named grinder, convert a setting between grinders, read the grinder catalogue, publish profiles under a short code for a coffee bag, and record how first cups tasted. Every lookup works without a key and is CORS-open. Grinder data is commission-free: no prices or retailer links.\n\nA published profile's short link, https://brewmark.io/p/{code}, answers with the profile JSON when asked with Accept: application/json, and with a page otherwise.",
+    "contact": {
+      "email": "hello@brewmark.io",
+      "url": "https://brewmark.io/protocol"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://brewmark.io/api/v1"
+    }
+  ],
+  "security": [
+    {},
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "translate",
+      "description": "BGI targets and profiles to grinder settings."
+    },
+    {
+      "name": "grinders",
+      "description": "The grinder catalogue."
+    },
+    {
+      "name": "profiles",
+      "description": "Open Brew Profiles published under a short code: the code on the bag."
+    },
+    {
+      "name": "ratings",
+      "description": "Anonymous first-cup ratings, and their aggregates for a profile's publisher."
+    },
+    {
+      "name": "measurements",
+      "description": "Owners' particle-size readings of their own grinders, held for review (protocol/measurement.md)."
+    },
+    {
+      "name": "keys",
+      "description": "API keys. Optional for lookups."
+    }
+  ],
+  "paths": {
+    "/translate": {
+      "get": {
+        "operationId": "translate",
+        "tags": [
+          "translate"
+        ],
+        "summary": "A BGI target to a setting on one grinder",
+        "parameters": [
+          {
+            "name": "bgi",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "example": 38,
+            "description": "Values outside 0–100 are clamped, with a warning."
+          },
+          {
+            "name": "grinder",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "fellow-ode-gen-2"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The setting.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslateResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A parameter is missing or not a number.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A key was sent but is not recognised or has been revoked. Send none to use the anonymous tier.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No published grinder has that slug.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "BrewMark knows the grinder but does not publish settings for it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsWithheld"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests. Retry after the Retry-After header; a key raises the limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The grinder catalogue could not be read. Retry later.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "translateProfile",
+        "tags": [
+          "translate"
+        ],
+        "summary": "An Open Brew Profile's grind, translated to one grinder",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TranslateProfileRequest"
+              },
+              "example": {
+                "grinder": "fellow-ode-gen-2",
+                "profile": {
+                  "spec": "brewmark.obp/0.1",
+                  "id": "brewmark-pour-over",
+                  "name": "Pour Over: BrewMark starting point",
+                  "method": "pour_over",
+                  "grind": {
+                    "bgi": 38,
+                    "label": "Medium-fine"
+                  },
+                  "ratio": 16.7,
+                  "temperatureC": 96,
+                  "timeSeconds": 180,
+                  "author": {
+                    "type": "brewmark",
+                    "name": "BrewMark"
+                  },
+                  "source": "https://brewmark.io/methods/pour-over"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The profile as posted, and its grind on the grinder.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslateProfileResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is not JSON, has no grinder, or the profile is invalid (see issues).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A key was sent but is not recognised or has been revoked. Send none to use the anonymous tier.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No published grinder has that slug.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The body is larger than 32,000 bytes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "BrewMark knows the grinder but does not publish settings for it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsWithheld"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests. Retry after the Retry-After header; a key raises the limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The grinder catalogue could not be read. Retry later.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/convert": {
+      "get": {
+        "operationId": "convert",
+        "tags": [
+          "translate"
+        ],
+        "summary": "A setting on one grinder to the same grind on another",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "comandante-c40-mk4"
+          },
+          {
+            "name": "setting",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "18",
+            "description": "Written as the source dial prints it (\"4.2\" on a Fellow Ode is the second mark after 4)."
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "baratza-encore"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The converted setting.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConvertResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "A parameter is missing or the setting is not a number.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A key was sent but is not recognised or has been revoked. Send none to use the anonymous tier.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No published grinder has that slug.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "BrewMark knows the grinder but does not publish settings for it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsWithheld"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests. Retry after the Retry-After header; a key raises the limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The grinder catalogue could not be read. Retry later.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/grinders": {
+      "get": {
+        "operationId": "listGrinders",
+        "tags": [
+          "grinders"
+        ],
+        "summary": "Every published grinder, with its dial and settings",
+        "description": "Grinders whose settings BrewMark withholds are listed with settingsWithheld: true and no numbers. No prices or retailer links.",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "fellow",
+            "description": "Case-insensitive filter on brand, name or slug."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The catalogue.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GrinderList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A key was sent but is not recognised or has been revoked. Send none to use the anonymous tier.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests. Retry after the Retry-After header; a key raises the limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The grinder catalogue could not be read. Retry later.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/grinders/{slug}": {
+      "get": {
+        "operationId": "getGrinder",
+        "tags": [
+          "grinders"
+        ],
+        "summary": "One grinder, with its dial and settings",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "fellow-ode-gen-2"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The grinder.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GrinderResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A key was sent but is not recognised or has been revoked. Send none to use the anonymous tier.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No published grinder has that slug.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "BrewMark knows the grinder but does not publish settings for it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsWithheld"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests. Retry after the Retry-After header; a key raises the limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The grinder catalogue could not be read. Retry later.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/profiles": {
+      "post": {
+        "operationId": "publishProfile",
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Publish a profile under a new code",
+        "description": "Needs a key: a code printed on a bag must have an owner who can correct or withdraw it.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileBody"
+              },
+              "example": {
+                "profile": {
+                  "spec": "brewmark.obp/0.1",
+                  "id": "brewmark-pour-over",
+                  "name": "Pour Over: BrewMark starting point",
+                  "method": "pour_over",
+                  "grind": {
+                    "bgi": 38,
+                    "label": "Medium-fine"
+                  },
+                  "ratio": 16.7,
+                  "temperatureC": 96,
+                  "timeSeconds": 180,
+                  "author": {
+                    "type": "brewmark",
+                    "name": "BrewMark"
+                  },
+                  "source": "https://brewmark.io/methods/pour-over"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The new code and its links.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishedProfileLinks"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is not JSON or the profile is invalid (see issues).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key, or a key BrewMark does not recognise.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The body is larger than 32,000 bytes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests. Retry after the Retry-After header; a key raises the limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "listProfiles",
+        "tags": [
+          "profiles"
+        ],
+        "summary": "The profiles this key published",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Newest first, withdrawn ones included.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishedProfileList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key, or a key BrewMark does not recognise.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests. Retry after the Retry-After header; a key raises the limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/profiles/{code}": {
+      "get": {
+        "operationId": "getProfile",
+        "tags": [
+          "profiles"
+        ],
+        "summary": "A published profile",
+        "description": "Public: the code is printed on a bag.",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "7H2KQ9",
+            "description": "The profile code, in any case."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The profile.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishedProfile"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No active profile with that code (for changes: none published by this key).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests. Retry after the Retry-After header; a key raises the limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "updateProfile",
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Replace a published profile",
+        "description": "Only with the key that published it. The printed code keeps working.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "7H2KQ9",
+            "description": "The profile code, in any case."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileBody"
+              },
+              "example": {
+                "profile": {
+                  "spec": "brewmark.obp/0.1",
+                  "id": "brewmark-pour-over",
+                  "name": "Pour Over: BrewMark starting point",
+                  "method": "pour_over",
+                  "grind": {
+                    "bgi": 36,
+                    "label": "Medium-fine"
+                  },
+                  "ratio": 16.7,
+                  "temperatureC": 96,
+                  "timeSeconds": 180,
+                  "author": {
+                    "type": "brewmark",
+                    "name": "BrewMark"
+                  },
+                  "source": "https://brewmark.io/methods/pour-over"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The code and its links.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublishedProfileLinks"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is not JSON or the profile is invalid (see issues).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key, or a key BrewMark does not recognise.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No active profile with that code (for changes: none published by this key).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The body is larger than 32,000 bytes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests. Retry after the Retry-After header; a key raises the limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "withdrawProfile",
+        "tags": [
+          "profiles"
+        ],
+        "summary": "Withdraw a published profile",
+        "description": "Only with the key that published it. The code then answers 404. Republishing with PUT restores it.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "7H2KQ9",
+            "description": "The profile code, in any case."
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Withdrawn."
+          },
+          "401": {
+            "description": "No key, or a key BrewMark does not recognise.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No active profile with that code (for changes: none published by this key).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests. Retry after the Retry-After header; a key raises the limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/profiles/{code}/qr.svg": {
+      "get": {
+        "operationId": "profileQr",
+        "tags": [
+          "profiles"
+        ],
+        "summary": "A QR code of the profile's short link, for print",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "7H2KQ9",
+            "description": "The profile code, in any case."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SVG, ink on white, high error correction.",
+            "content": {
+              "image/svg+xml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No active profile with that code (for changes: none published by this key).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests. Retry after the Retry-After header; a key raises the limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/profiles/{code}/insights": {
+      "get": {
+        "operationId": "profileInsights",
+        "tags": [
+          "ratings"
+        ],
+        "summary": "How a profile's first cups rated, per grinder",
+        "description": "Only with the key that published the profile. Aggregates only.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "7H2KQ9",
+            "description": "The profile code, in any case."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Counts and suggestions per grinder.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileInsights"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key, or a key BrewMark does not recognise.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No active profile with that code (for changes: none published by this key).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests. Retry after the Retry-After header; a key raises the limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ratings": {
+      "post": {
+        "operationId": "rate",
+        "tags": [
+          "ratings"
+        ],
+        "summary": "Record how a first cup tasted",
+        "description": "Send a profile code, or a method and bgi. Anonymous: nothing about the person is accepted or stored. A key is optional; ratings sent with one are marked as that key's.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RatingRequest"
+              },
+              "example": {
+                "grinder": "fellow-ode-gen-2",
+                "method": "pour_over",
+                "bgi": 38,
+                "setting": 6.6,
+                "result": "sour"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Recorded.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RatingRecorded"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is invalid, has neither a code nor method and bgi, or the setting is off the dial.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A key was sent but is not recognised or has been revoked. Send none to use the anonymous tier.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No profile with that code, or no published grinder with that slug.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The body is larger than 32,000 bytes.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests. Retry after the Retry-After header; a key raises the limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The grinder catalogue could not be read. Retry later.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/measurements": {
+      "post": {
+        "operationId": "submitMeasurement",
+        "tags": [
+          "measurements"
+        ],
+        "summary": "Submit a particle-size reading for a grinder at one setting",
+        "description": "D10/D50/D90 in µm, volume-weighted, with the method used. For the image method (protocol/measurement.md, the tool at https://brewmark.io/tools/measure-grind) at least 200 particles must have been counted. Numbers only: no photo is accepted. Every reading is stored as pending and counts towards nothing until reviewed. A key is optional; readings sent with one are marked as that key's. Without a key, 20 readings an hour per address.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MeasurementRequest"
+              },
+              "example": {
+                "grinder": "baratza-encore",
+                "setting": 14,
+                "d50Microns": 720,
+                "d10Microns": 380,
+                "d90Microns": 1050,
+                "method": "image",
+                "particles": 640,
+                "note": "Burrs about a year old"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Stored as pending, for review.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeasurementRecorded"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is not JSON, a field is invalid (see issues), or the setting is off the dial.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "A key was sent but is not recognised or has been revoked. Send none to use the anonymous tier.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No published grinder has that slug.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "The body is larger than 4,000 bytes. Send the numbers, not the photo.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "BrewMark knows the grinder but does not publish settings for it.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SettingsWithheld"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests. Retry after the Retry-After header; a key raises the limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The grinder catalogue could not be read, or the reading could not be stored. Retry later.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/keys": {
+      "post": {
+        "operationId": "requestKey",
+        "tags": [
+          "keys"
+        ],
+        "summary": "Request an API key",
+        "description": "The key is emailed to the address given and never returned by the API.",
+        "security": [
+          {}
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KeyRequest"
+              },
+              "example": {
+                "email": "you@example.com",
+                "org": "Example Coffee",
+                "kind": "developer"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "The key was emailed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeyRequested"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The body is not JSON or a field is invalid (see issues).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests. Retry after the Retry-After header; a key raises the limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "The email could not be sent; no key was issued.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/keys/usage": {
+      "get": {
+        "operationId": "keyUsage",
+        "tags": [
+          "keys"
+        ],
+        "summary": "The calling key's usage, per day and route, for 30 days",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usage for the key in the Authorization header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeyUsage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No key, or a key BrewMark does not recognise.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many requests. Retry after the Retry-After header; a key raises the limit.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "An API key, sent as \"Authorization: Bearer bm_live_…\". Optional for lookups; request one with POST /keys."
+      }
+    },
+    "schemas": {
+      "OpenBrewProfile": {
+        "title": "Open Brew Profile 0.1",
+        "type": "object",
+        "properties": {
+          "spec": {
+            "type": "string",
+            "const": "brewmark.obp/0.1"
+          },
+          "id": {
+            "type": "string",
+            "maxLength": 64
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "pour_over",
+              "drip",
+              "batch_brew",
+              "french_press",
+              "immersion",
+              "aeropress",
+              "espresso",
+              "moka",
+              "cold_brew"
+            ]
+          },
+          "coffee": {
+            "type": "object",
+            "properties": {
+              "roaster": {
+                "type": "string",
+                "maxLength": 120
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 120
+              },
+              "origin": {
+                "type": "string",
+                "maxLength": 120
+              },
+              "process": {
+                "type": "string",
+                "maxLength": 60
+              },
+              "roast": {
+                "type": "string",
+                "enum": [
+                  "light",
+                  "medium-light",
+                  "medium",
+                  "medium-dark",
+                  "dark"
+                ]
+              },
+              "roastDate": {
+                "type": "string",
+                "format": "date",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+              }
+            },
+            "additionalProperties": false
+          },
+          "brewer": {
+            "type": "object",
+            "properties": {
+              "family": {
+                "description": "e.g. \"cone\", \"flat-bottom\", \"immersion\", \"espresso-machine\".",
+                "type": "string",
+                "maxLength": 60
+              },
+              "model": {
+                "type": "string",
+                "maxLength": 120
+              }
+            },
+            "additionalProperties": false
+          },
+          "grind": {
+            "type": "object",
+            "properties": {
+              "bgi": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100,
+                "description": "Target on the BrewMark Grind Index: 0 espresso fine, 40 filter medium, 100 very coarse."
+              },
+              "label": {
+                "description": "How the author describes the grind, e.g. \"Medium-fine\".",
+                "type": "string",
+                "maxLength": 40
+              },
+              "d50Microns": {
+                "description": "Target median particle size, when the author has measured it.",
+                "type": "number",
+                "exclusiveMinimum": 0
+              }
+            },
+            "required": [
+              "bgi"
+            ],
+            "additionalProperties": false
+          },
+          "water": {
+            "description": "The water the recipe was dialed in with. Hard, high-alkalinity water extracts and tastes differently from soft water.",
+            "type": "object",
+            "properties": {
+              "name": {
+                "description": "A named recipe or product, e.g. \"Third Wave Water Classic\".",
+                "type": "string",
+                "maxLength": 80
+              },
+              "tdsMgL": {
+                "description": "Total dissolved solids, mg/L.",
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1000
+              },
+              "hardnessMgL": {
+                "description": "General hardness, mg/L as CaCO3.",
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1000
+              },
+              "alkalinityMgL": {
+                "description": "Alkalinity (carbonate hardness), mg/L as CaCO3.",
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1000
+              }
+            },
+            "additionalProperties": false
+          },
+          "ratio": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "description": "Grams of water per gram of coffee. For espresso, grams of drink out per gram of coffee."
+          },
+          "doseGrams": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "waterGrams": {
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "temperatureC": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "timeSeconds": {
+            "description": "Total brew time.",
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "steps": {
+            "maxItems": 40,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "atSeconds": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "When the step starts, from the first water."
+                },
+                "action": {
+                  "type": "string",
+                  "enum": [
+                    "bloom",
+                    "pour",
+                    "stir",
+                    "swirl",
+                    "steep",
+                    "press",
+                    "drawdown",
+                    "serve"
+                  ]
+                },
+                "waterGrams": {
+                  "description": "Total water in the brewer by the end of this step.",
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                "note": {
+                  "type": "string",
+                  "maxLength": 280
+                }
+              },
+              "required": [
+                "atSeconds",
+                "action"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "author": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "roaster",
+                  "brewmark",
+                  "person",
+                  "machine"
+                ]
+              },
+              "name": {
+                "type": "string",
+                "maxLength": 120
+              }
+            },
+            "required": [
+              "type"
+            ],
+            "additionalProperties": false
+          },
+          "source": {
+            "type": "string",
+            "format": "uri"
+          },
+          "extensions": {
+            "description": "Vendor fields. Keys start with \"x-\"; readers ignore keys they do not know.",
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "pattern": "^x-[a-z0-9-]+$"
+            },
+            "additionalProperties": {}
+          }
+        },
+        "required": [
+          "spec",
+          "method",
+          "grind",
+          "ratio"
+        ],
+        "additionalProperties": false
+      },
+      "TranslatedGrinder": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "brand": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "scale": {
+            "type": "string",
+            "description": "How the dial is read: \"Numbered dial\", \"Clicks\" or \"Rotations\"."
+          },
+          "unit": {
+            "type": "string",
+            "enum": [
+              "NUMBER",
+              "CLICKS",
+              "ROTATIONS"
+            ]
+          },
+          "dial": {
+            "type": "object",
+            "properties": {
+              "min": {
+                "type": "number"
+              },
+              "max": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "min",
+              "max"
+            ]
+          }
+        },
+        "required": [
+          "slug",
+          "brand",
+          "name",
+          "scale",
+          "unit",
+          "dial"
+        ]
+      },
+      "Translation": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "type": "string",
+            "const": "brewmark.obp/0.1"
+          },
+          "grinder": {
+            "$ref": "#/components/schemas/TranslatedGrinder"
+          },
+          "bgi": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "The target, clamped to 0–100 and rounded to one decimal."
+          },
+          "grindIndex": {
+            "type": "number",
+            "description": "Same value as bgi, under the name /convert returns."
+          },
+          "setting": {
+            "type": "number",
+            "description": "Position on the dial curve, before snapping to the dial's marks."
+          },
+          "settingLabel": {
+            "type": "string",
+            "description": "The setting as the dial prints it."
+          },
+          "between": {
+            "description": "On a stepped dial whose curve falls between two marks: those marks, finer first.",
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "provenance": {
+            "type": "string",
+            "enum": [
+              "measured",
+              "maker",
+              "community",
+              "estimated"
+            ],
+            "description": "How the grinder's curve from BGI to setting is known (protocol/README.md, \"Provenance\")."
+          },
+          "warning": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "spec",
+          "grinder",
+          "bgi",
+          "grindIndex",
+          "setting",
+          "settingLabel",
+          "provenance"
+        ]
+      },
+      "TranslateResponse": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "type": "string",
+            "const": "brewmark.obp/0.1"
+          },
+          "grinder": {
+            "$ref": "#/components/schemas/TranslatedGrinder"
+          },
+          "bgi": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "The target, clamped to 0–100 and rounded to one decimal."
+          },
+          "grindIndex": {
+            "type": "number",
+            "description": "Same value as bgi, under the name /convert returns."
+          },
+          "setting": {
+            "type": "number",
+            "description": "Position on the dial curve, before snapping to the dial's marks."
+          },
+          "settingLabel": {
+            "type": "string",
+            "description": "The setting as the dial prints it."
+          },
+          "between": {
+            "description": "On a stepped dial whose curve falls between two marks: those marks, finer first.",
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "provenance": {
+            "type": "string",
+            "enum": [
+              "measured",
+              "maker",
+              "community",
+              "estimated"
+            ],
+            "description": "How the grinder's curve from BGI to setting is known (protocol/README.md, \"Provenance\")."
+          },
+          "warning": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string",
+            "format": "uri",
+            "description": "Where this API is documented."
+          }
+        },
+        "required": [
+          "spec",
+          "grinder",
+          "bgi",
+          "grindIndex",
+          "setting",
+          "settingLabel",
+          "provenance",
+          "method"
+        ]
+      },
+      "TranslateProfileRequest": {
+        "type": "object",
+        "properties": {
+          "grinder": {
+            "type": "string",
+            "description": "A grinder slug, e.g. \"fellow-ode-gen-2\"."
+          },
+          "profile": {
+            "$ref": "#/components/schemas/OpenBrewProfile"
+          }
+        },
+        "required": [
+          "grinder",
+          "profile"
+        ]
+      },
+      "TranslateProfileResponse": {
+        "type": "object",
+        "properties": {
+          "profile": {
+            "$ref": "#/components/schemas/OpenBrewProfile"
+          },
+          "grind": {
+            "$ref": "#/components/schemas/Translation"
+          },
+          "method": {
+            "type": "string",
+            "format": "uri",
+            "description": "Where this API is documented."
+          }
+        },
+        "required": [
+          "profile",
+          "grind",
+          "method"
+        ]
+      },
+      "ConvertResponse": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "object",
+            "properties": {
+              "slug": {
+                "type": "string"
+              },
+              "brand": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "scale": {
+                "type": "string",
+                "description": "How the dial is read: \"Numbered dial\", \"Clicks\" or \"Rotations\"."
+              },
+              "unit": {
+                "type": "string",
+                "enum": [
+                  "NUMBER",
+                  "CLICKS",
+                  "ROTATIONS"
+                ]
+              },
+              "dial": {
+                "type": "object",
+                "properties": {
+                  "min": {
+                    "type": "number"
+                  },
+                  "max": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "min",
+                  "max"
+                ]
+              },
+              "setting": {
+                "type": "number"
+              },
+              "settingLabel": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "slug",
+              "brand",
+              "name",
+              "scale",
+              "unit",
+              "dial",
+              "setting",
+              "settingLabel"
+            ],
+            "description": "The source grinder, with the setting echoed as given (clamped to its dial)."
+          },
+          "to": {
+            "type": "object",
+            "properties": {
+              "slug": {
+                "type": "string"
+              },
+              "brand": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "scale": {
+                "type": "string",
+                "description": "How the dial is read: \"Numbered dial\", \"Clicks\" or \"Rotations\"."
+              },
+              "unit": {
+                "type": "string",
+                "enum": [
+                  "NUMBER",
+                  "CLICKS",
+                  "ROTATIONS"
+                ]
+              },
+              "dial": {
+                "type": "object",
+                "properties": {
+                  "min": {
+                    "type": "number"
+                  },
+                  "max": {
+                    "type": "number"
+                  }
+                },
+                "required": [
+                  "min",
+                  "max"
+                ]
+              },
+              "setting": {
+                "type": "number"
+              },
+              "settingLabel": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "slug",
+              "brand",
+              "name",
+              "scale",
+              "unit",
+              "dial",
+              "setting",
+              "settingLabel"
+            ],
+            "description": "The target grinder, with the converted setting written at its dial's resolution."
+          },
+          "grindIndex": {
+            "type": "number",
+            "description": "The shared 0–100 BGI value both settings map to."
+          },
+          "warning": {
+            "type": "string"
+          },
+          "method": {
+            "type": "string",
+            "format": "uri",
+            "description": "Where this API is documented."
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "grindIndex",
+          "method"
+        ]
+      },
+      "Grinder": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "brand": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "burrType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "FLAT",
+                  "CONICAL",
+                  "HYBRID"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "power": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "hand",
+                  "electric"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null when the grinder is not in BrewMark's grinder finder."
+          },
+          "page": {
+            "type": "string",
+            "format": "uri",
+            "description": "The grinder's settings page on brewmark.io."
+          },
+          "buyingGuide": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uri"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The grinder's buying guide on brewmark.io, when one is written."
+          },
+          "settingsWithheld": {
+            "type": "boolean",
+            "const": false
+          },
+          "provenance": {
+            "type": "string",
+            "enum": [
+              "measured",
+              "maker",
+              "community",
+              "estimated"
+            ],
+            "description": "How the grinder's curve from BGI to setting is known (protocol/README.md, \"Provenance\")."
+          },
+          "dial": {
+            "type": "object",
+            "properties": {
+              "min": {
+                "type": "number"
+              },
+              "max": {
+                "type": "number"
+              },
+              "unit": {
+                "type": "string",
+                "enum": [
+                  "NUMBER",
+                  "CLICKS",
+                  "ROTATIONS"
+                ]
+              },
+              "scale": {
+                "type": "string",
+                "description": "How the dial is read: \"Numbered dial\", \"Clicks\" or \"Rotations\"."
+              },
+              "adjustment": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "stepped",
+                      "stepless"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "null when BrewMark has no sourced record of how the dial adjusts. Unknown is not stepless."
+              },
+              "step": {
+                "anyOf": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "One step, in the dial's own units, when the dial is stepped and the step is recorded."
+              },
+              "notation": {
+                "type": "string",
+                "enum": [
+                  "plain",
+                  "marks",
+                  "macro-micro",
+                  "rotation-position"
+                ],
+                "description": "How settings are written. plain: \"18\", \"6.5\". marks: number then which mark after it, so \"4.2\" is the second mark after 4 (Fellow). macro-micro: number and letter, \"5M\" (Baratza). rotation-position: rotations + position, \"2+3\" (Eureka)."
+              }
+            },
+            "required": [
+              "min",
+              "max",
+              "unit",
+              "scale",
+              "adjustment",
+              "step",
+              "notation"
+            ]
+          },
+          "anchors": {
+            "minItems": 5,
+            "maxItems": 5,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "bgi": {
+                  "type": "number"
+                },
+                "setting": {
+                  "type": "number",
+                  "description": "Position on the dial curve, to three decimals."
+                },
+                "settingLabel": {
+                  "type": "string",
+                  "description": "The position as the dial prints it."
+                }
+              },
+              "required": [
+                "bgi",
+                "setting",
+                "settingLabel"
+              ]
+            },
+            "description": "The five points the grinder's curve is fitted through: BGI 0, 15, 40, 70 and 100."
+          },
+          "settings": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "description": "Chart method key, e.g. \"v60\", \"espresso\", \"frenchpress\"."
+                },
+                "label": {
+                  "type": "string"
+                },
+                "bgi": {
+                  "type": "number",
+                  "description": "The method's centre on the BGI."
+                },
+                "bgiRange": {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "description": "The band either side of it on the BGI."
+                },
+                "setting": {
+                  "type": "string",
+                  "description": "Where to start, as the dial prints it. The same number as the grinder's page on brewmark.io."
+                },
+                "range": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "The band written as dial settings; null where the dial tops or bottoms out."
+                },
+                "basis": {
+                  "type": "string",
+                  "enum": [
+                    "maker",
+                    "estimated"
+                  ],
+                  "description": "maker: the maker's own chart names this method. estimated: read off the fitted curve."
+                }
+              },
+              "required": [
+                "key",
+                "label",
+                "bgi",
+                "bgiRange",
+                "setting",
+                "range",
+                "basis"
+              ]
+            },
+            "description": "One row per brew method, as on the grinder's page."
+          }
+        },
+        "required": [
+          "slug",
+          "brand",
+          "name",
+          "burrType",
+          "power",
+          "page",
+          "buyingGuide",
+          "settingsWithheld",
+          "provenance",
+          "dial",
+          "anchors",
+          "settings"
+        ]
+      },
+      "WithheldGrinder": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "brand": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "burrType": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "FLAT",
+                  "CONICAL",
+                  "HYBRID"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "power": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "hand",
+                  "electric"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "null when the grinder is not in BrewMark's grinder finder."
+          },
+          "page": {
+            "type": "string",
+            "format": "uri",
+            "description": "The grinder's settings page on brewmark.io."
+          },
+          "buyingGuide": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uri"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The grinder's buying guide on brewmark.io, when one is written."
+          },
+          "settingsWithheld": {
+            "type": "boolean",
+            "const": true
+          },
+          "reason": {
+            "type": "string",
+            "description": "Why BrewMark publishes no setting for this grinder. The page explains in full."
+          }
+        },
+        "required": [
+          "slug",
+          "brand",
+          "name",
+          "burrType",
+          "power",
+          "page",
+          "buyingGuide",
+          "settingsWithheld",
+          "reason"
+        ],
+        "description": "A grinder BrewMark lists but publishes no settings for: no dial, anchors or settings."
+      },
+      "GrinderEntry": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/Grinder"
+          },
+          {
+            "$ref": "#/components/schemas/WithheldGrinder"
+          }
+        ]
+      },
+      "GrinderList": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "type": "string",
+            "const": "brewmark.obp/0.1"
+          },
+          "count": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "grinders": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GrinderEntry"
+            }
+          },
+          "docs": {
+            "type": "string",
+            "format": "uri",
+            "description": "Where this API is documented."
+          }
+        },
+        "required": [
+          "spec",
+          "count",
+          "grinders",
+          "docs"
+        ]
+      },
+      "GrinderResponse": {
+        "type": "object",
+        "properties": {
+          "spec": {
+            "type": "string",
+            "const": "brewmark.obp/0.1"
+          },
+          "grinder": {
+            "$ref": "#/components/schemas/Grinder"
+          },
+          "docs": {
+            "type": "string",
+            "format": "uri",
+            "description": "Where this API is documented."
+          }
+        },
+        "required": [
+          "spec",
+          "grinder",
+          "docs"
+        ]
+      },
+      "ProfileBody": {
+        "type": "object",
+        "properties": {
+          "profile": {
+            "$ref": "#/components/schemas/OpenBrewProfile"
+          }
+        },
+        "required": [
+          "profile"
+        ]
+      },
+      "PublishedProfileLinks": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Six characters of Crockford base32. Lookups ignore case and the look-alike letters O, I and L."
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "The short link to print on a bag, https://brewmark.io/p/<code>. Asked for with Accept: application/json, it answers with the profile JSON."
+          },
+          "json": {
+            "type": "string",
+            "format": "uri",
+            "description": "This profile from the API."
+          },
+          "qr": {
+            "type": "string",
+            "format": "uri",
+            "description": "A QR code of the short link, as SVG for print."
+          }
+        },
+        "required": [
+          "code",
+          "url",
+          "json",
+          "qr"
+        ]
+      },
+      "PublishedProfile": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Six characters of Crockford base32. Lookups ignore case and the look-alike letters O, I and L."
+          },
+          "profile": {
+            "$ref": "#/components/schemas/OpenBrewProfile"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "The short link to print on a bag, https://brewmark.io/p/<code>. Asked for with Accept: application/json, it answers with the profile JSON."
+          },
+          "json": {
+            "type": "string",
+            "format": "uri",
+            "description": "This profile from the API."
+          },
+          "qr": {
+            "type": "string",
+            "format": "uri",
+            "description": "A QR code of the short link, as SVG for print."
+          }
+        },
+        "required": [
+          "code",
+          "profile",
+          "updatedAt",
+          "url",
+          "json",
+          "qr"
+        ]
+      },
+      "PublishedProfileList": {
+        "type": "object",
+        "properties": {
+          "profiles": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "description": "Six characters of Crockford base32. Lookups ignore case and the look-alike letters O, I and L."
+                },
+                "name": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "method": {
+                  "type": "string"
+                },
+                "bgi": {
+                  "type": "number"
+                },
+                "status": {
+                  "type": "string",
+                  "description": "\"active\", or \"withdrawn\" once its owner withdraws it."
+                },
+                "createdAt": {
+                  "type": "string",
+                  "format": "date-time",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                },
+                "url": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "The short link to print on a bag, https://brewmark.io/p/<code>. Asked for with Accept: application/json, it answers with the profile JSON."
+                },
+                "json": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "This profile from the API."
+                },
+                "qr": {
+                  "type": "string",
+                  "format": "uri",
+                  "description": "A QR code of the short link, as SVG for print."
+                }
+              },
+              "required": [
+                "code",
+                "name",
+                "method",
+                "bgi",
+                "status",
+                "createdAt",
+                "url",
+                "json",
+                "qr"
+              ]
+            },
+            "description": "Profiles this key published, newest first, withdrawn ones included."
+          }
+        },
+        "required": [
+          "profiles"
+        ]
+      },
+      "RatingRequest": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "description": "A profile code or its link. The method and target are then taken from the profile.",
+            "type": "string",
+            "maxLength": 80
+          },
+          "grinder": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "description": "A grinder slug."
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "sour",
+              "good",
+              "bitter"
+            ],
+            "description": "How the first cup tasted."
+          },
+          "method": {
+            "description": "Required without a code.",
+            "type": "string",
+            "enum": [
+              "pour_over",
+              "drip",
+              "batch_brew",
+              "french_press",
+              "immersion",
+              "aeropress",
+              "espresso",
+              "moka",
+              "cold_brew"
+            ]
+          },
+          "bgi": {
+            "description": "Required without a code.",
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "setting": {
+            "description": "The setting brewed at, in the grinder's own units. Must be on its dial.",
+            "type": "number"
+          },
+          "source": {
+            "description": "\"machine\" for a brewer reporting on its own; counts only with a key.",
+            "type": "string",
+            "enum": [
+              "web",
+              "machine"
+            ]
+          }
+        },
+        "required": [
+          "grinder",
+          "result"
+        ],
+        "description": "One anonymous first-cup rating. Nothing about the person is accepted or stored."
+      },
+      "RatingRecorded": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "const": true
+          }
+        },
+        "required": [
+          "ok"
+        ]
+      },
+      "ProfileInsights": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Six characters of Crockford base32. Lookups ignore case and the look-alike letters O, I and L."
+          },
+          "minRatingsForSuggestion": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "Ratings on one grinder before a suggestion is made."
+          },
+          "total": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "grinders": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "grinderSlug": {
+                  "type": "string"
+                },
+                "total": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "sour": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "good": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "bitter": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "suggestion": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "description": "Plain-language advice when one direction clearly dominates."
+                }
+              },
+              "required": [
+                "grinderSlug",
+                "total",
+                "sour",
+                "good",
+                "bitter",
+                "suggestion"
+              ]
+            },
+            "description": "Per grinder, most-rated first. Aggregates only; no single rating is returned."
+          }
+        },
+        "required": [
+          "code",
+          "minRatingsForSuggestion",
+          "total",
+          "grinders"
+        ]
+      },
+      "MeasurementRequest": {
+        "type": "object",
+        "properties": {
+          "grinder": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "pattern": "^[a-z0-9-]+$",
+            "description": "A published grinder slug."
+          },
+          "setting": {
+            "type": "number",
+            "description": "The setting measured, in the grinder's catalogue units (as /grinders/{slug} gives its dial). Must be on the dial."
+          },
+          "d50Microns": {
+            "type": "number",
+            "minimum": 50,
+            "maximum": 3000,
+            "description": "Volume-weighted median particle size, in µm."
+          },
+          "d10Microns": {
+            "description": "Volume-weighted 10th percentile, in µm. Not larger than d50Microns.",
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "d90Microns": {
+            "description": "Volume-weighted 90th percentile, in µm. Not smaller than d50Microns.",
+            "type": "number",
+            "exclusiveMinimum": 0
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "image",
+              "sieve",
+              "laser"
+            ],
+            "description": "How the sizes were read. \"image\" is protocol/measurement.md."
+          },
+          "particles": {
+            "description": "Particles counted. Required for \"image\", at least 200.",
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "note": {
+            "description": "Burr age, anything unusual about the unit. Contact details are dropped.",
+            "type": "string",
+            "maxLength": 280
+          }
+        },
+        "required": [
+          "grinder",
+          "setting",
+          "d50Microns",
+          "method"
+        ],
+        "description": "An owner's particle-size reading for one grinder at one setting. Numbers only: no photo is accepted."
+      },
+      "MeasurementRecorded": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991,
+            "description": "The reading's id."
+          },
+          "status": {
+            "type": "string",
+            "const": "pending",
+            "description": "Every reading is held as pending until reviewed; it counts towards nothing before then."
+          }
+        },
+        "required": [
+          "id",
+          "status"
+        ],
+        "description": "The reading was stored for review."
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "What went wrong, in a sentence."
+          },
+          "parameter": {
+            "description": "The query parameter or body field at fault, when there is one.",
+            "type": "string"
+          },
+          "example": {
+            "description": "A working request, when a required parameter is missing.",
+            "type": "string"
+          },
+          "issues": {
+            "description": "Every problem found in a posted body or Open Brew Profile.",
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path",
+                "message"
+              ]
+            }
+          },
+          "keys": {
+            "description": "With a 401 for a missing or bad key: where to request one.",
+            "type": "string",
+            "format": "uri"
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "SettingsWithheld": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "string"
+          },
+          "settingsWithheld": {
+            "type": "boolean",
+            "const": true
+          },
+          "slug": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string",
+            "description": "One line, for a card or a picker."
+          },
+          "explanation": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Why BrewMark publishes no setting, in paragraphs."
+          },
+          "dialIn": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "How an owner can find a starting point on their own unit."
+          },
+          "page": {
+            "type": "string",
+            "format": "uri"
+          },
+          "parameter": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "error",
+          "settingsWithheld",
+          "slug",
+          "reason",
+          "explanation",
+          "dialIn",
+          "page"
+        ],
+        "description": "Returned with 422 for a grinder BrewMark knows but whose settings it does not publish, because a number on its dial does not mean the same grind on every unit."
+      },
+      "KeyRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 200,
+            "format": "email",
+            "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+            "description": "Where the key is sent. It is emailed, never returned by the API."
+          },
+          "org": {
+            "description": "The company or project the key is for.",
+            "type": "string",
+            "maxLength": 120
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "developer",
+              "roaster",
+              "brewer",
+              "agent"
+            ]
+          },
+          "website": {
+            "description": "Leave empty. A field people never see; bots fill it.",
+            "type": "string",
+            "maxLength": 0
+          }
+        },
+        "required": [
+          "email",
+          "kind"
+        ],
+        "description": "A request for an API key."
+      },
+      "KeyRequested": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "const": true
+          },
+          "sentTo": {
+            "type": "string",
+            "description": "The address the key was emailed to."
+          },
+          "prefix": {
+            "type": "string",
+            "description": "The start of the key, to tell keys apart. The key itself is only in the email."
+          }
+        },
+        "required": [
+          "ok",
+          "sentTo",
+          "prefix"
+        ]
+      },
+      "KeyUsage": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "object",
+            "properties": {
+              "prefix": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "developer",
+                  "roaster",
+                  "brewer",
+                  "agent"
+                ]
+              },
+              "plan": {
+                "type": "string"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time",
+                "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+              },
+              "lastUsedAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "prefix",
+              "kind",
+              "plan",
+              "createdAt",
+              "lastUsedAt"
+            ]
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "day": {
+                  "type": "string",
+                  "format": "date",
+                  "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                },
+                "route": {
+                  "type": "string"
+                },
+                "count": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "day",
+                "route",
+                "count"
+              ]
+            },
+            "description": "Calls per UTC day and route, for the last 30 days."
+          },
+          "total": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "key",
+          "days",
+          "total"
+        ]
+      }
+    }
+  }
+}
