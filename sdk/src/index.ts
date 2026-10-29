@@ -173,7 +173,18 @@ export type GrinderEntry = Grinder | WithheldGrinder;
 export type KeyKind = 'developer' | 'roaster' | 'brewer' | 'agent';
 
 export type KeyUsage = {
-  key: { prefix: string; kind: KeyKind; plan: string; createdAt: string; lastUsedAt: string | null };
+  key: {
+    prefix: string;
+    kind: KeyKind;
+    plan: string;
+    /** What the key may do: "read", and "publish" for bag codes and insights. */
+    scopes: ('read' | 'publish')[];
+    /** Calls allowed per UTC day, all routes. */
+    dailyQuota: number;
+    usedToday: number;
+    createdAt: string;
+    lastUsedAt: string | null;
+  };
   /** Calls per UTC day and route, for the last 30 days. */
   days: { day: string; route: string; count: number }[];
   total: number;
@@ -222,6 +233,8 @@ export type Measurement = {
   /** Particles counted; at least 200 for "image". */
   particles?: number;
   note?: string;
+  /** The device that read the sizes, e.g. "difluid-omni". */
+  instrument?: string;
 };
 
 /** Every reading is held as pending until reviewed. */
@@ -317,7 +330,15 @@ export class BrewMark {
   }
 
   /** Request an API key. It is emailed to `email`, never returned. */
-  requestKey(args: { email: string; kind: KeyKind; org?: string }): Promise<{ ok: true; sentTo: string; prefix: string }> {
+  /** Request API access. A person reviews it; the key is emailed if approved, never returned here. */
+  requestKey(args: {
+    email: string;
+    org: string;
+    site: string;
+    kind: KeyKind;
+    useCase: string;
+    volume: 'low' | 'medium' | 'high';
+  }): Promise<{ ok: true; status: 'pending'; sentTo: string }> {
     return this.request('POST', '/keys', undefined, args);
   }
 

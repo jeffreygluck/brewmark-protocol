@@ -91,6 +91,13 @@ https://brewmark.io/api/v1/openapi.json ([copy](openapi.json)).
 [`sdk/`](sdk/) is a typed TypeScript client with no dependencies
 (`@brewmark/protocol`, not yet on npm).
 
+## Values and fingerprints
+
+`settingLabel` is what to show. The unrounded `setting` in a response made
+with an API key carries a variation of a few millionths that identifies the
+key, so data copied from the API can be traced. It never changes a label or
+any value at the precision of a dial. Responses without a key carry none.
+
 ## Provenance
 
 Every translation says how the grinder's curve is known. One vocabulary is used

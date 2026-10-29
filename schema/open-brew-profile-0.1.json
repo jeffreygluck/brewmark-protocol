@@ -14,7 +14,8 @@
     },
     "name": {
       "type": "string",
-      "maxLength": 120
+      "maxLength": 120,
+      "pattern": "^(?![\\s\\S]*(?:https?:\\/\\/|www\\.|\\b[a-z0-9-]+\\.(?:com|net|org|io|co|shop|store|xyz|ru|cn)\\b))[\\s\\S]*$"
     },
     "method": {
       "type": "string",
@@ -35,19 +36,23 @@
       "properties": {
         "roaster": {
           "type": "string",
-          "maxLength": 120
+          "maxLength": 120,
+          "pattern": "^(?![\\s\\S]*(?:https?:\\/\\/|www\\.|\\b[a-z0-9-]+\\.(?:com|net|org|io|co|shop|store|xyz|ru|cn)\\b))[\\s\\S]*$"
         },
         "name": {
           "type": "string",
-          "maxLength": 120
+          "maxLength": 120,
+          "pattern": "^(?![\\s\\S]*(?:https?:\\/\\/|www\\.|\\b[a-z0-9-]+\\.(?:com|net|org|io|co|shop|store|xyz|ru|cn)\\b))[\\s\\S]*$"
         },
         "origin": {
           "type": "string",
-          "maxLength": 120
+          "maxLength": 120,
+          "pattern": "^(?![\\s\\S]*(?:https?:\\/\\/|www\\.|\\b[a-z0-9-]+\\.(?:com|net|org|io|co|shop|store|xyz|ru|cn)\\b))[\\s\\S]*$"
         },
         "process": {
           "type": "string",
-          "maxLength": 60
+          "maxLength": 60,
+          "pattern": "^(?![\\s\\S]*(?:https?:\\/\\/|www\\.|\\b[a-z0-9-]+\\.(?:com|net|org|io|co|shop|store|xyz|ru|cn)\\b))[\\s\\S]*$"
         },
         "roast": {
           "type": "string",
@@ -191,7 +196,8 @@
           },
           "note": {
             "type": "string",
-            "maxLength": 280
+            "maxLength": 280,
+            "pattern": "^(?![\\s\\S]*(?:https?:\\/\\/|www\\.|\\b[a-z0-9-]+\\.(?:com|net|org|io|co|shop|store|xyz|ru|cn)\\b))[\\s\\S]*$"
           }
         },
         "required": [
@@ -215,7 +221,8 @@
         },
         "name": {
           "type": "string",
-          "maxLength": 120
+          "maxLength": 120,
+          "pattern": "^(?![\\s\\S]*(?:https?:\\/\\/|www\\.|\\b[a-z0-9-]+\\.(?:com|net|org|io|co|shop|store|xyz|ru|cn)\\b))[\\s\\S]*$"
         }
       },
       "required": [
@@ -225,6 +232,7 @@
     },
     "source": {
       "type": "string",
+      "maxLength": 500,
       "format": "uri"
     },
     "extensions": {
